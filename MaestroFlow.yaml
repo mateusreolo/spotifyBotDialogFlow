@@ -1,0 +1,256 @@
+name: MusicSkill
+context:
+  variables:
+    greeting: "string"
+    name: "string"
+    iResult: "nlpresult"
+    musicType: "MusicType"
+    playlists: "string"
+    music: "Music"
+    offset: "int"
+    origem: "string"
+    feelings: "Feelings"
+    mensagens: "string"
+    currentDateAndTime: "string"
+    autoTranslate: "boolean"
+    rb: "resourcebundle"
+    
+defaultTransitions:
+  error: "errorState"
+  
+states:
+
+  setOffset:
+    component: "System.SetVariable"
+    properties:
+      variable: "offset" 
+      value: 0
+    transitions: {}
+
+  setDate:
+    component: "System.SetVariable"
+    properties:
+      variable: "currentDateAndTime"
+      value: ${.now?string["EEEE, MMMM dd, yyyy, hh:mm a '('zzz')'"]}
+    transitions:
+      next: "setMap"
+
+  setMap:
+    component: "System.SetVariable"
+    properties:
+      variable: "mensagens"
+      value:
+        bemvindo:
+        - "Fala ai!\nMeu nome é Maestro \U0001F3B6\n\nVamos por uma trilha sonora em sua vida."
+        - "Maestro aqui! \U0001F3B6\n\nQue tal um pouco de música hoje?"
+        - "Olá amante da música \U0001F3B6\n\n Meu nome é Maestro\n Me diga o que você quer ouvir!"
+    transitions: 
+      next: "intent" 
+
+  intent:
+    component: "System.Intent"
+    properties:
+      variable: "iResult"
+    transitions:
+      actions:
+        boasVindas: "greeting1"
+        procurarPlaylistSentimento: "getFeeling"
+        searchMusicGenre: "selectGenre"
+        unresolvedIntent: "errorState"
+
+  greeting1:
+    component: "System.Output"
+    properties:
+      text: "${mensagens.value.bemvindo[.now?long % mensagens.value.bemvindo?size]}"
+      keepTurn: true
+    transitions:
+      next: "actionList"
+
+  actionList:
+    component: "System.List"
+    properties: 
+      prompt: "Como você quer procurar suas músicas? \U0001F50E"
+      options: 
+      - label: "Por Faixa \U0001F4BF"
+        value: "action1"
+        keyword: "faixa,música,por faixa,Por Faixa,porfaixa"
+      - label: "Por sentimentos \U0001F609"
+        value: "action2"
+        keyword: "sentimentos,meus sentimentos,por sentimentos,Por Sentimentos"
+      - label: "Por Gênero \U0001F918"
+        value: "action3"
+        keyword: "gênero,genero,gêneros,por generos,por genero"
+    transitions:
+      actions:
+        action1: "selectTrack"
+        action2: "getFeeling"
+        action3: "selectGenre"
+
+  getFeeling:
+    component: "System.Text"
+    properties:
+      prompt: "Como você está se sentindo hoje?"
+      variable: "feelings"
+      nlpResultVariable: "iResult"
+      maxPrompts: 3
+    transitions:
+      actions:
+        textReceived: "searchMusicbyFeeling"
+        cancel: "errorState"
+
+  selectTrack:
+    component: "System.ResolveEntities"
+    properties:
+      variable: "music"
+      nlpResultVariable: "iResult"       
+      cancelPolicy: "immediate" 
+      footerText: "eg.: Rude - MAGIC!"
+    transitions:
+      next: "searchMusicbyTrack"
+      actions:
+        cancel: "errorState"
+        
+  searchMusicbyFeeling:
+    component: "Custom.GetPlaylistsByFeeling"
+    properties:
+      feeling: "${feelings.value}"
+      offset: "${offset.value}"
+      clientId: "${system.config.clientId}"
+      clientSecret: "${system.config.clientSecret}"
+    transitions:
+      actions:
+        success: "setOriginfromFeeling"
+        failure: "errorState"
+        
+  searchMusicbyTrack:
+    component: "Custom.MusicSearcher"
+    properties:
+      track: "${music.value.SongName}"
+      offset: "${offset.value}"
+      clientId: "${system.config.clientId}"
+      clientSecret: "${system.config.clientSecret}"
+    transitions:
+      actions:
+        success: "setOriginfromMusic"
+        failure: "errorState"
+
+  setOriginfromMusic:
+    component: "System.SetVariable"
+    properties:
+      variable: "origem"
+      value: "setOriginfromMusic"
+    transitions:
+      next: "Feedback"
+      
+  Feedback:
+    component: "System.List"
+    properties: 
+      prompt: "Acertei sua escolha?"
+      options: 
+      - label: "Sim"
+        value: "sim" 
+      - label: "Não"
+        value: "nao" 
+    transitions:
+      actions:
+        sim: "bye"
+        nao: "increment"
+
+  increment:
+    component: "System.SetVariable"
+    properties:
+      variable: "offset"
+      value: "${offset.value?number + 4}"
+    transitions:
+      next: "checkExitCondition"
+      
+  checkExitCondition:
+    component: "System.Switch"
+    properties:
+      source: "${(offset.value?number > 12)?then('bye','continue')}"
+      values:
+      - "bye"
+      - "continue"
+    transitions:
+      actions:
+        bye: "bye"
+        #continue: "<#if system.actualState == 'setOriginfromMusic'>searchMusicbyTrack<#else>getPlaylistByGenre</#if>"
+        #continue: "${origem.value?contains('setOriginfromMusic')?then('searchMusicbyTrack', 'getPlaylistByGenre')}"
+        continue: "<#if origem.value?contains('setOriginfromMusic')>searchMusicbyTrack<#elseif origem.value?contains('setOriginfromGenre')>getPlaylistByGenre<#else>searchMusicbyFeeling</#if>"
+        #continue: "getPlaylistByGenre"
+        NONE: "bye"
+
+  selectGenre:
+    component: "System.ResolveEntities"
+    properties:
+      variable: "musicType"
+      nlpResultVariable: "iResult"       
+      maxPrompts: 3  
+      showMoreLabel: "More Genres"
+      showPreviousLabel: "Previous Genres"
+    transitions:
+      actions:
+        match: "getPlaylistByGenre"
+        cancel: "errorState"
+        
+  getPlaylistByGenre:
+    component: "Custom.PlaylistGetter"
+    properties:
+      genre: "${musicType.value}"
+      offset: "${offset.value}"
+      clientId: "${system.config.clientId}"
+      clientSecret: "${system.config.clientSecret}"
+    transitions:
+      actions:
+        success: "setOriginfromGenre"
+        failure: "errorState"
+
+#Início definição das origens da busca da música
+
+  setOriginfromGenre:
+    component: "System.SetVariable"
+    properties:
+      variable: "origem"
+      value: "setOriginfromGenre"
+    transitions:
+      next: "Feedback"
+      
+  setOriginfromFeeling:
+    component: "System.SetVariable"
+    properties:
+      variable: "origem"
+      value: "setOriginfromFeeling"
+    transitions:
+      next: "Feedback"
+
+# Término definição das origens da busca da música   
+
+  output:
+    component: "System.Output"
+    properties:
+      text: "${musicType.value}"
+    transitions:
+      return: "done"
+
+  bye:
+    component: "System.Output"
+    properties:
+      text: "Estarei aqui 24/7 !"
+      keepTurn: true
+    transitions:
+      next: "bye2"
+      
+  bye2:
+    component: "System.Output"
+    properties:
+      text: "Te vejo nesse mesmo canal, nessa mesma estação! \U0001F3B5 \U0001F4FB"
+      keepTurn: true
+    transitions:
+      return: "done"
+      
+  errorState:
+    component: "System.Output"
+    properties:
+      text: "Desculpe, fiz o meu melhor, mas não entendi o que disse \U0001F61F"
+    transitions:
+      return: "done"
