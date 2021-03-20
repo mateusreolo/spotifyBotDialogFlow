@@ -132,18 +132,20 @@ states:
       offset: "${offset.value}"
       clientId: "${system.config.clientId}"
       clientSecret: "${system.config.clientSecret}"
+      #musicId: "musicId"
     transitions:
       actions:
         success: "setOriginfromMusic"
         listenNow: "printIframe"
         failure: "errorState"
+        increment: "setOriginfromMusic"
 
 
   printIframe:
     component: "Custom.RenderIframe"
     transitions:
       actions:
-        success: "setOriginfromMusic"
+        success: "anythingElse"
         failure: "errorState"
 
 
@@ -153,9 +155,24 @@ states:
       variable: "origem"
       value: "setOriginfromMusic"
     transitions:
-      next: "Feedback"
-  
-      
+      next: "increment"
+
+# Usuario deseja ouvir outra musica?
+
+  anythingElse:
+    component: "System.List"
+    properties: 
+      prompt: "Você deseja ouvir outra música?"
+      options: 
+      - label: "Sim"
+        value: "sim" 
+      - label: "Não"
+        value: "nao" 
+    transitions:
+      actions:
+        sim: "resetToMusic"
+        nao: "actionList"
+
   Feedback:
     component: "System.List"
     properties: 
@@ -236,8 +253,18 @@ states:
       value: "setOriginfromFeeling"
     transitions:
       next: "Feedback"
+      
+# Seção para resetar variáveis
 
-# Término definição das origens da busca da música   
+  resetToMusic:
+    component: "System.ResetVariables"
+    properties:
+      variableList: "music, offset"
+    transitions:
+      next: "selectTrack"
+      
+# Término definição das origens da busca da música  
+
 
   output:
     component: "System.Output"
