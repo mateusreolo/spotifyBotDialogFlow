@@ -1,3 +1,4 @@
+
 name: MusicSkill
 context:
   variables:
@@ -14,6 +15,7 @@ context:
     currentDateAndTime: "string"
     autoTranslate: "boolean"
     rb: "resourcebundle"
+    musicId: "string"
     
 defaultTransitions:
   error: "errorState"
@@ -94,8 +96,9 @@ states:
       nlpResultVariable: "iResult"
       maxPrompts: 3
     transitions:
+      next: "searchMusicbyFeeling"
       actions:
-        textReceived: "searchMusicbyFeeling"
+        #textReceived: "searchMusicbyFeeling"
         cancel: "errorState"
 
   selectTrack:
@@ -132,7 +135,17 @@ states:
     transitions:
       actions:
         success: "setOriginfromMusic"
+        listenNow: "printIframe"
         failure: "errorState"
+
+
+  printIframe:
+    component: "Custom.RenderIframe"
+    transitions:
+      actions:
+        success: "setOriginfromMusic"
+        failure: "errorState"
+
 
   setOriginfromMusic:
     component: "System.SetVariable"
@@ -141,6 +154,7 @@ states:
       value: "setOriginfromMusic"
     transitions:
       next: "Feedback"
+  
       
   Feedback:
     component: "System.List"
