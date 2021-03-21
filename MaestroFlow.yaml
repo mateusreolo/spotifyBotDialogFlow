@@ -122,10 +122,10 @@ states:
       clientSecret: "${system.config.clientSecret}"
     transitions:
       actions:
-        success: "anythingElseFeelings"
-        listenNow: "printIframe"
+        success: "executeTransitions"
+        #listenNow: "printIframe"
         failure: "errorState"
-        increment: "setOriginfromFeeling"
+        #increment: "setOriginfromGenre"
         
   searchMusicbyTrack:
     component: "Custom.MusicSearcher"
@@ -136,16 +136,16 @@ states:
       clientSecret: "${system.config.clientSecret}"
     transitions:
       actions:
-        success: "anythingElse"
-        listenNow: "printIframe"
+        success: "executeTransitions"
+        #listenNow: "printIframe"
         failure: "errorState"
-        increment: "setOriginfromMusic"
+        #increment: "setOriginfromGenre"
 
   printIframe:
     component: "Custom.RenderIframe"
     transitions:
       actions:
-        success: "anythingElse"
+        success: "<#if origem.value?contains('setOriginfromMusic')>anythingElse<#elseif origem.value?contains('setOriginfromGenre')>anythingElseGenre<#else>anythingElseFeelings</#if>"
         failure: "errorState"
 
 
@@ -249,10 +249,22 @@ states:
       clientSecret: "${system.config.clientSecret}"
     transitions:
       actions:
-        success: "anythingElseGenre"
-        listenNow: "printIframe"
+        success: "executeTransitions"
+        #listenNow: "printIframe"
         failure: "errorState"
-        increment: "setOriginfromGenre"
+        #increment: "setOriginfromGenre"
+
+# Componente para transicionar
+
+  executeTransitions:
+    component: "Custom.HandlePostback"
+    properties:
+      origem: "${origem.value}"
+    transitions:
+      next: "intent"
+      actions:      
+        increment: "increment"
+        listenNow: "printIframe"
 
 #Início definição das origens da busca da música
 
@@ -285,7 +297,7 @@ states:
     component: "System.SetVariable"
     properties:
       variable: "offset" 
-      value: 0
+      value: "0"
     transitions:
       next: "selectTrack"
 
@@ -300,7 +312,7 @@ states:
     component: "System.SetVariable"
     properties:
       variable: "offset" 
-      value: 0
+      value: "0"
     transitions:
       next: "getFeeling"
       
@@ -315,7 +327,7 @@ states:
     component: "System.SetVariable"
     properties:
       variable: "offset" 
-      value: 0
+      value: "0"
     transitions:
       next: "selectGenre"
 # Término definição das origens da busca da música  
