@@ -122,8 +122,10 @@ states:
       clientSecret: "${system.config.clientSecret}"
     transitions:
       actions:
-        success: "setOriginfromFeeling"
+        success: "executeTransitions"
+        #listenNow: "printIframe"
         failure: "errorState"
+        #increment: "setOriginfromGenre"
         
   searchMusicbyTrack:
     component: "Custom.MusicSearcher"
@@ -132,20 +134,18 @@ states:
       offset: "${offset.value}"
       clientId: "${system.config.clientId}"
       clientSecret: "${system.config.clientSecret}"
-      #musicId: "musicId"
     transitions:
       actions:
-        success: "setOriginfromMusic"
-        listenNow: "printIframe"
+        success: "executeTransitions"
+        #listenNow: "printIframe"
         failure: "errorState"
-        increment: "setOriginfromMusic"
-
+        #increment: "setOriginfromGenre"
 
   printIframe:
     component: "Custom.RenderIframe"
     transitions:
       actions:
-        success: "anythingElse"
+        success: "<#if origem.value?contains('setOriginfromMusic')>anythingElse<#elseif origem.value?contains('setOriginfromGenre')>anythingElseGenre<#else>anythingElseFeelings</#if>"
         failure: "errorState"
 
 
@@ -162,30 +162,47 @@ states:
   anythingElse:
     component: "System.List"
     properties: 
-      prompt: "Você deseja ouvir outra música?"
+      prompt: "Você deseja ouvir outra coisa?"
       options: 
       - label: "Sim"
-        value: "sim" 
+        value: "sim1" 
       - label: "Não"
-        value: "nao" 
+        value: "nao1" 
     transitions:
+      next: "anythingElse"
       actions:
-        sim: "resetToMusic"
-        nao: "actionList"
+        sim1: "resetToMusic"
+        nao1: "actionList"
 
-  Feedback:
+  anythingElseFeelings:
     component: "System.List"
     properties: 
-      prompt: "Acertei sua escolha?"
+      prompt: "Você deseja ouvir outra coisa?"
       options: 
       - label: "Sim"
-        value: "sim" 
+        value: "sim2" 
       - label: "Não"
-        value: "nao" 
+        value: "nao2" 
     transitions:
+      next: "anythingElseFeelings"
       actions:
-        sim: "bye"
-        nao: "increment"
+        sim2: "resetToPlaylist"
+        nao2: "actionList"
+
+  anythingElseGenre:
+    component: "System.List"
+    properties: 
+      prompt: "Você deseja ouvir outra coisa?"
+      options: 
+      - label: "Sim"
+        value: "sim3" 
+      - label: "Não"
+        value: "nao3" 
+    transitions:
+      next: "anythingElseGenre"
+      actions:
+        sim3: "resetToGenre"
+        nao3: "actionList"
 
   increment:
     component: "System.SetVariable"
@@ -212,16 +229,15 @@ states:
         NONE: "bye"
 
   selectGenre:
-    component: "System.ResolveEntities"
+    component: "System.Text"
     properties:
+      prompt: "Que tipo de música quer ouvir?"
       variable: "musicType"
       nlpResultVariable: "iResult"       
       maxPrompts: 3  
-      showMoreLabel: "More Genres"
-      showPreviousLabel: "Previous Genres"
     transitions:
+      next: "getPlaylistByGenre"
       actions:
-        match: "getPlaylistByGenre"
         cancel: "errorState"
         
   getPlaylistByGenre:
@@ -233,8 +249,22 @@ states:
       clientSecret: "${system.config.clientSecret}"
     transitions:
       actions:
-        success: "setOriginfromGenre"
+        success: "executeTransitions"
+        #listenNow: "printIframe"
         failure: "errorState"
+        #increment: "setOriginfromGenre"
+
+# Componente para transicionar
+
+  executeTransitions:
+    component: "Custom.HandlePostback"
+    properties:
+      origem: "${origem.value}"
+    transitions:
+      next: "intent"
+      actions:      
+        increment: "increment"
+        listenNow: "printIframe"
 
 #Início definição das origens da busca da música
 
@@ -244,7 +274,7 @@ states:
       variable: "origem"
       value: "setOriginfromGenre"
     transitions:
-      next: "Feedback"
+      next: "increment"
       
   setOriginfromFeeling:
     component: "System.SetVariable"
@@ -252,17 +282,54 @@ states:
       variable: "origem"
       value: "setOriginfromFeeling"
     transitions:
-      next: "Feedback"
+      next: "increment"
       
 # Seção para resetar variáveis
 
   resetToMusic:
     component: "System.ResetVariables"
     properties:
-      variableList: "music, offset"
+      variableList: "music,Music, offset"
+    transitions:
+      next: "offsetToMusic"
+
+  offsetToMusic:
+    component: "System.SetVariable"
+    properties:
+      variable: "offset" 
+      value: "0"
     transitions:
       next: "selectTrack"
+
+  resetToPlaylist:
+    component: "System.ResetVariables"
+    properties:
+      variableList: "feelings, Feelings,offset"
+    transitions:
+      next: "offsetToPlaylist"
+
+  offsetToPlaylist:
+    component: "System.SetVariable"
+    properties:
+      variable: "offset" 
+      value: "0"
+    transitions:
+      next: "getFeeling"
       
+  resetToGenre:
+    component: "System.ResetVariables"
+    properties:
+      variableList: "musicType,MusicType,offset"
+    transitions:
+      next: "offsetToGenre"
+
+  offsetToGenre:
+    component: "System.SetVariable"
+    properties:
+      variable: "offset" 
+      value: "0"
+    transitions:
+      next: "selectGenre"
 # Término definição das origens da busca da música  
 
 
